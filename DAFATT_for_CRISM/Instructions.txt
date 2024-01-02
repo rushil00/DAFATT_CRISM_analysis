@@ -1,0 +1,16 @@
+%  Honglei Lin, J,D.Tarnas, J. F. Mustard, Xia Zhang et al. Dynamic Aperture Factor Analysis/Target Transformation (DAFA/TT)
+%  for Serpentine and Mg-Carbonate Mapping on Mars with CRISM Near-Infrared Data. Icarus, 2020.
+
+
+MAIN.m is the main program.
+% Run this program, then select the folder contains the CRISM images
+% The results will be recorded in DAFATTResults folder
+% output:*_DAFATT.img
+
+create_tiles.pro is the IDL program Run with ENVI 5.3 or higher
+% using this program to idnetify the clusters in the DAFA/TT result image 
+% output: *_DAFATT_tiles.img
+
+
+Validation_DAFATT.m is the program to check the target transformation fits
+
