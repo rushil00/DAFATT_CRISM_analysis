@@ -38,7 +38,7 @@ def hysime(y, n, Rn):
     Rx = np.dot(x, x.T) / N
     E, dx, V = np.linalg.svd(Rx)
 
-    Rn = Rn + np.sum(np.diag(Rx))/L/10**10 * np.eye(L)
+    Rn = Rn + np.sum(np.diag(Rx))/L/10**5 * np.eye(L)
     Py = np.diag(np.dot(E.T, np.dot(Ry, E)))
     Pn = np.diag(np.dot(E.T, np.dot(Rn, E)))
     cost_F = -Py + 2 * Pn
