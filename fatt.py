@@ -64,7 +64,7 @@ def FATT(data, targetlibrary, targetlibraryName, wavelength, **kwargs):
         eignum = 'FATTPaper'  # Default
 
     if eignum == 'Hysime':
-        noise_type = 'additive'
+        noise_type = 'poisson'
         verbose = 'off'
         w, Rn = estNoise(data.T, noise_type)
         # print(f"w.shape: {w.shape} \n Rn.shape: {Rn.shape}")
