@@ -20,9 +20,8 @@ def hysime(y, n, Rn):
         * Ek matrix which columns are the eigenvectors that span
           the signal subspace.
 
-    Copyright:
-        Jose Nascimento (zen@isel.pt) & Jose Bioucas-Dias (bioucas@lx.it.pt)
-        For any comments contact the authors
+    Reference from:
+        Jose Nascimento & Jose Bioucas-Dias
     """
 
     y = y.T
@@ -65,8 +64,8 @@ def estNoise(y, noise_type='additive'):
         * the noise estimates for every pixel (N x p)
         * the noise correlation matrix estimates (p x p)
 
-    Copyright:
-        Jose Nascimento (zen@isel.pt) and Jose Bioucas-Dias (bioucas@lx.it.pt)
+    Reference from:
+        Jose Nascimento and Jose Bioucas-Dias 
         For any comments contact the authors
     """
     def est_additive_noise(r):
