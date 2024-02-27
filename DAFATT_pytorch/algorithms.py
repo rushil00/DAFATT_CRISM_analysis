@@ -1,6 +1,5 @@
 import torch
 # Check if GPU is available
-import torch
 
 # Check if CUDA is available
 # if torch.cuda.is_available():
@@ -222,7 +221,7 @@ def hysime(y, n, Rn):
     kf = torch.sum(cost_F < 0)
     ind_asc = torch.argsort(cost_F)
     Ek = E[:, ind_asc[0:kf]]
-    return kf, E # Ek.T ?
+    return kf, Ek # Ek.T ?
 # =====================================================================
 #original hysime self-refactored:
 def hysime_1(y, n, Rn):
@@ -352,3 +351,29 @@ def FATT(data, targetlibrary, targetlibraryName, wavelength, **kwargs):
 
 def normalize_columns(matrix):
     return matrix / torch.sum(matrix, dim=0, keepdim=True)
+# ===================================================================
+def dafatt(data, targetlibrary):
+    nline, nsample, nband = data.shape
+    data1 = torch.reshape(data, (nsample*nline, nband))
+    # Normaldata = data1 - torch.mean(data1, dim=1, keepdim=True)
+    # C = torch.matmul(Normaldata, Normaldata.t()) / data1.shape[1]
+    # eigenvectors, eigenvalues, _ = torch.svd(C)
+    # eigva = eigenvalues.flip(0)
+    # eigenvectors = eigenvectors.flip(1)
+    noise_type = 'additive'
+    verbose = 'off'
+    w, Rn = estNoise(data1.T, noise_type)
+    kf, Ek = hysime(data[:, :, :], w, Rn)
+    # targetlibrary= TargetLibraryRef
+    L, P = targetlibrary.shape
+    targetlibraryNor = targetlibrary / torch.tile(torch.sum(targetlibrary, dim=0, keepdim=True), (data1.shape[1], 1))
+    model = torch.zeros_like(targetlibraryNor, dtype=torch.double)
+    model1 = torch.zeros_like(targetlibraryNor,dtype=torch.double)
+    NorRMSE = torch.zeros(targetlibraryNor.shape[1],dtype=torch.double)
+    RMSE = torch.zeros(targetlibraryNor.shape[1],dtype=torch.double)
+    for i in range(targetlibrary.shape[1]):
+        X_hat_tv_i= UCLS(targetlibrary[:,i].unsqueeze(0),Ek.t())
+        model[:,i] = torch.matmul(Ek.double(),X_hat_tv_i).t().squeeze(0)
+        model1[:, i] = model[:, i] / torch.sum(model[:, i], dim=0)
+        NorRMSE[i] = torch.sqrt(torch.sum((model1[:, i] - targetlibraryNor[:, i]) ** 2) / L)
+    return kf, Ek, NorRMSE, model, model1, targetlibraryNor
