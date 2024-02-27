@@ -55,7 +55,7 @@ def UCLS(M, U):
         An abundance maps (N x q).
     """
     Uinv = torch.linalg.pinv(U.T)
-    return torch.matmul(Uinv.to(torch.double), M.to(torch.double).T)
+    return torch.matmul(Uinv.to(torch.double), M.to(torch.double).T).T
 
 # ===============================================================================================================
 # Noise Estimation Algorithm
@@ -98,6 +98,7 @@ def estNoise(r, noise_type='additive'):
     #         w[i,:] = r[i,:] - np.dot(beta,r)
     #     Rw = np.diag(np.diag(np.dot(w,w.T) / N))
     #     return w, Rw
+    r = r.t()
     small = 1e-6
     L, N = r.shape
     w=torch.zeros((L,N), dtype=torch.float,device=r.device)
@@ -109,14 +110,14 @@ def estNoise(r, noise_type='additive'):
 
     # RRi = np.matrix(RRi)
     for i in range(L):
-        XX = RRi - (RRi[:,i].unsqueeze(1)*RRi[i,:].unsqueeze(0)) / RRi[i,i]
+        XX = RRi - (RRi[:,i].unsqueeze(1)*RRi[i,:].unsqueeze(0)) / RRi[i,i] #potential check-point
         RRa = RR[:,i]
         RRa[i] = 0
         beta =XX@RRa
         beta[i]=0
         w[i,:] = r[i,:] - beta@r
-    Rw = torch.diag(torch.diag((w@w.T) / N))
-    return w.T, Rw
+    Rw = torch.diag(torch.diag((w.T@w) / N))
+    return w.T, Rw.T
 # ==================================================================
 def estNoise_1(y, noise_type='additive'):
     """
@@ -163,7 +164,7 @@ def estNoise_1(y, noise_type='additive'):
         u, Ru = est_additive_noise(sqy)
         x = (sqy - u)**2
         w = torch.sqrt(x) * u * 2
-        Rw = torch.matmul(w, w.t()) / N
+        Rw = torch.matmul(w.t(), w) / N
     else:
         w, Rw = est_additive_noise(y)
     return w, Rw.T
@@ -201,24 +202,27 @@ def hysime(y, n, Rn):
     h, w, numBands = y.shape
     y = torch.reshape(y, (w * h, numBands))
     y=y.T
-    n=n.T
+    n=n
     Rn=Rn.T
     L, N = y.shape
     Ln, Nn = n.shape
     d1, d2 = Rn.shape
 
-    x = y - n
+    x = y - n.T
+    # print(f'x.shape: {x.shape}')
 
-    Ry = y@y.T / N
-    Rx = x@x.T/ N
-    E, dx, V =torch.svd(Rx.cpu())
+    Ry = (y@y.T) / N
+    Rx = (x@x.T)/ N
+    # print(f'Rx.shape: {Rx.shape}')
+    # print(f'Ry.shape: {Ry.shape}')
+    E, dx, V =torch.svd(Rx) #torch.svd(Rx.cpu())?
     E=E.to(device=y.device)
     # print(V)
     Rn = Rn+torch.sum(torch.diag(Rx))/L/10**5 * torch.eye(L,device=y.device)
     Py = torch.diag(E.T@(Ry@E))
     Pn = torch.diag(E.T@(Rn@E))
     cost_F = -Py + 2 * Pn
-    kf = torch.sum(cost_F < 0)
+    kf = 1+torch.sum(cost_F < 0)
     ind_asc = torch.argsort(cost_F)
     Ek = E[:, ind_asc[0:kf]]
     return kf, Ek # Ek.T ?
@@ -352,6 +356,7 @@ def FATT(data, targetlibrary, targetlibraryName, wavelength, **kwargs):
 def normalize_columns(matrix):
     return matrix / torch.sum(matrix, dim=0, keepdim=True)
 # ===================================================================
+from tqdm import tqdm
 def dafatt(data, targetlibrary):
     nline, nsample, nband = data.shape
     data1 = torch.reshape(data, (nsample*nline, nband))
@@ -363,7 +368,7 @@ def dafatt(data, targetlibrary):
     noise_type = 'additive'
     verbose = 'off'
     w, Rn = estNoise(data1.T, noise_type)
-    kf, Ek = hysime(data[:, :, :], w, Rn)
+    kf, Ek = hysime(data[:, :, :], w.T, Rn)
     # targetlibrary= TargetLibraryRef
     L, P = targetlibrary.shape
     targetlibraryNor = targetlibrary / torch.tile(torch.sum(targetlibrary, dim=0, keepdim=True), (data1.shape[1], 1))
@@ -371,9 +376,10 @@ def dafatt(data, targetlibrary):
     model1 = torch.zeros_like(targetlibraryNor,dtype=torch.double)
     NorRMSE = torch.zeros(targetlibraryNor.shape[1],dtype=torch.double)
     RMSE = torch.zeros(targetlibraryNor.shape[1],dtype=torch.double)
-    for i in range(targetlibrary.shape[1]):
-        X_hat_tv_i= UCLS(targetlibrary[:,i].unsqueeze(0),Ek.t())
-        model[:,i] = torch.matmul(Ek.double(),X_hat_tv_i).t().squeeze(0)
+    for i in tqdm(range(targetlibrary.shape[1]), desc= "TargetTransform", leave= False):
+        X_hat_tv_i= UCLS(targetlibrary[:,i].double().unsqueeze(0),Ek.double().t())
+        # print(f'x_hat_tv_i.shape: {X_hat_tv_i.shape}')
+        model[:,i] = torch.matmul(Ek.double(),X_hat_tv_i.t()).t().squeeze(0)
         model1[:, i] = model[:, i] / torch.sum(model[:, i], dim=0)
         NorRMSE[i] = torch.sqrt(torch.sum((model1[:, i] - targetlibraryNor[:, i]) ** 2) / L)
     return kf, Ek, NorRMSE, model, model1, targetlibraryNor

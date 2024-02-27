@@ -16,7 +16,8 @@ W = hyperUcls(M, U)
 data_initial = open_image('../../nili_fosae/mtrdr/2006/2006_345/HRL/hrl0000b8c2_07_if183j_mtr3.hdr')
 # Set data range
 (xx_1, xx_2), (yy_1, yy_2) = (351, 480), (200, 350)
-(xx_1,xx_2),(yy_1,yy_2) = (270,370) , (380,600)
+(xx_1,xx_2),(yy_1,yy_2) = (270,290) , (380,400)
+# (xx_1,xx_2),(yy_1,yy_2) = (321,381) , (390,450)
 
 # data = torch.tensor(data_initial[yy_1:yy_2, xx_1:xx_2, :])
 data = torch.tensor(data_initial[yy_1:yy_2, xx_1:xx_2, 178:313])
@@ -32,7 +33,7 @@ wave = torch.tensor(TargetLibrary_data['TargetLibrary'][104:-1, 0])
 noise_type = 'additive'
 verbose = 'off'
 w, Rn = estNoise(data1.T, noise_type)
-kf, Ek = hysime(data[:, :, :], w, Rn)
+kf, Ek = hysime(data[:, :, :], w.T, Rn)
 print("Noise estimate for every pixel (w.shape): ",w.shape)
 print("Noise estimate for noise correlation (Rn.shape): ",Rn.shape)
 print("Ek.shape: ",Ek.shape)
@@ -84,40 +85,42 @@ print("data1.shape: ",data1.shape)
 #     model1[:, i] = model[:, i] / torch.sum(model[:, i], dim=0)
 #     NorRMSE[i] = torch.sqrt(torch.sum((model1[:, i] - targetlibraryNor[:, i]) ** 2) / L)
    
-kf, Ek, NorRMSE, model, model1,targetlibraryNor = dafatt(data, TargetLibraryRef)
-print(f'NorRMSE: {NorRMSE}')
-print(f'NorRMSE.shape: {NorRMSE.shape}')
+# kf, Ek, NorRMSE, model, model1,targetlibraryNor = dafatt(data, TargetLibraryRef)
+# print(f'NorRMSE: {NorRMSE}')
+# print(f'NorRMSE.shape: {NorRMSE.shape}')
 # =================================================================================
 
 # =========================================================================
 # import torch
 
-# Fline, Fsample, nband = data.shape
-# nline, nsample, nband = data.shape
-# detect = torch.zeros((nline, nsample, n))
-# detect_square = torch.zeros((Fline, Fsample, n))
-# a = [6, 8]
-# b = [8, 6]
-# DETECT = {}
-# NorRMSE_min = []
+Fline, Fsample, nband = data.shape
+nline, nsample, nband = data.shape
+detect = torch.zeros((nline, nsample, n))
+detect_square = torch.zeros((Fline, Fsample, n))
+a = [3, 2]
+b = [3, 5]
+DETECT = {}
+NorRMSE_min = []
 
-# for window in range(len(a)):
-#     detect = torch.zeros((nline, nsample, n))
-#     for i in range(1, nline - a[window] + 1):
-#         for j in range(1, nsample - b[window] + 1):
-#             data1 = data[i:i + a[window], j:j + b[window], :]
+for window in range(len(a)):
+    detect = torch.zeros((nline, nsample, n))
+    for i in range(1, nline - a[window] + 1):
+        for j in range(1, nsample - b[window] + 1):
+            data1 = data[i:i + a[window], j:j + b[window], :]
 
-#             # Assuming dafatt returns torch tensors for kf, Ek, NorRMSE, model, model1, and targetlibraryNor
-#             kf, Ek, NorRMSE, model, model1, targetlibraryNor = dafatt(data1, TargetLibraryRef)
+            # Assuming dafatt returns torch tensors for kf, Ek, NorRMSE, model, model1, and targetlibraryNor
+            kf, Ek, NorRMSE, model, model1, targetlibraryNor = dafatt(data1, TargetLibraryRef)
 
-#             NorRMSE_min.append(NorRMSE.min())
+            NorRMSE_min.append(NorRMSE.min())
 
-#             for num in range(n):
-#                 if NorRMSE[num] <= 1.2e-4:
-#                     detect[i:i + a[window] - 1, j:j + b[window] - 1, num] = 1
+            for num in range(n):
+                if NorRMSE[num] <= 1.2e-4:
+                    detect[i:i + a[window] - 1, j:j + b[window] - 1, num] = 1
 
-#     detect_square[:, :, :] = detect
-#     DETECT[window] = detect_square
+    detect_square[:, :, :] = detect
+    DETECT[window] = detect_square
+NorRMSE_min= [NorRMSE_min[i].item() for i in range(len(NorRMSE_min))]
 
-# w1 = DETECT[0].bool()
-# w2 = DETECT[1].bool()
+w1 = DETECT[0].bool()
+w2 = DETECT[1].bool()
+print(min(NorRMSE_min))
